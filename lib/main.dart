@@ -5,6 +5,20 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+//import 'package:gallery_saver_plus/files.dart';
+import 'package:gallery_saver_plus/gallery_saver.dart';
+
+/*
+LISTA REPRODUCCION
+https://www.youtube.com/playlist?list=PLkVpKYNT_U9frI8-qia9vN3k-V7huavBB
+
+37) https://www.youtube.com/watch?v=oCxrnKKWzpI&list=PLkVpKYNT_U9frI8-qia9vN3k-V7huavBB&index=49 - Gridview y gesturedetector
+38) https://www.youtube.com/watch?v=whn1w-L5X4M&list=PLkVpKYNT_U9frI8-qia9vN3k-V7huavBB&index=50 - Camara
+      - https://pub.dev/packages/image_picker - instalar paquete
+39) https://www.youtube.com/watch?v=rBpTU6BLhk0&list=PLkVpKYNT_U9frI8-qia9vN3k-V7huavBB&index=51 - GPS
+
+*/
+
 void main() {
   runApp(const MyApp());
 }
@@ -36,68 +50,105 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
 
   XFile? _imageFile;
-  dynamic _pickImageError;
   File? _savedImage;
+  String? _pickImageError;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedImage();
+    _loadLastSavedImage();
   }
 
-  Future<void> _loadSavedImage() async {
+  /// -----------------------------------------------------------
+  /// Carga la última imagen guardada localmente
+  /// -----------------------------------------------------------
+  Future<void> _loadLastSavedImage() async {
     final directory = await getApplicationDocumentsDirectory();
-    final savedImagePath = File('${directory.path}/ultima_imagen.jpg');
+    final lastImageFile = File('${directory.path}/ultima_imagen.jpg');
 
-    if (await savedImagePath.exists()) {
+    if (await lastImageFile.exists()) {
       setState(() {
-        _savedImage = savedImagePath;
+        _savedImage = lastImageFile;
       });
     }
   }
 
+  /// -----------------------------------------------------------
+  /// Toma una foto desde cámara o galería + guarda internamente
+  /// y también en la galería del dispositivo.
+  /// -----------------------------------------------------------
   Future<void> _onImageButtonPressed(ImageSource source) async {
     try {
-      final pickedFile = await ImagePicker().pickImage(source: source);
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: source);
 
-      if (pickedFile != null) {
-        final directory = await getApplicationDocumentsDirectory();
-        final fileName = path.basename(pickedFile.path);
-        final savedImage = File('${directory.path}/$fileName');
+      if (pickedFile == null) return;
 
-        // Guardar la imagen en carpeta interna
-        await File(pickedFile.path).copy(savedImage.path);
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = path.basename(pickedFile.path);
+      final internalCopy = File('${directory.path}/$fileName');
 
-        // También guardamos una copia con nombre fijo para recargar más fácil
-        await File(pickedFile.path).copy('${directory.path}/ultima_imagen.jpg');
+      // Guardado interno
+      await File(pickedFile.path).copy(internalCopy.path);
 
-        setState(() {
-          _imageFile = pickedFile;
-          _savedImage = savedImage;
-        });
+      // Guardar como "última imagen"
+      await File(pickedFile.path)
+          .copy('${directory.path}/ultima_imagen.jpg');
+
+      // -------------------------------------------------------
+      // Guardado en GALERÍA
+      // -------------------------------------------------------
+      final bool? result = await GallerySaver.saveImage(pickedFile.path);
+      /* final bool? result = await GallerySaver.saveImage(
+        pickedFile.path,
+        name: "kamera_${DateTime.now().millisecondsSinceEpoch}",
+      );
+      */
+      if (result == true) {
+        _showMessage("Imagen guardada en la galería");
+      } else {
+        _showMessage("No se pudo guardar en la galería");
       }
+
+      setState(() {
+        _imageFile = pickedFile;
+        _savedImage = internalCopy;
+      });
     } catch (e) {
       setState(() {
-        _pickImageError = e;
+        _pickImageError = e.toString();
       });
     }
   }
 
+  /// -----------------------------------------------------------
+  /// Mensaje en pantalla
+  /// -----------------------------------------------------------
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text)),
+    );
+  }
+
+  /// -----------------------------------------------------------
+  /// Widget para ver imagen
+  /// -----------------------------------------------------------
   Widget _visualizarImagen() {
     if (_imageFile != null) {
       return Image.file(File(_imageFile!.path));
-    } else if (_savedImage != null) {
-      return Image.file(_savedImage!);
-    } else if (_pickImageError != null) {
-      return Center(
-        child: Text('Error al recuperar imagen: $_pickImageError'),
-      );
-    } else {
-      return const Center(
-        child: Text('No hay imagen'),
-      );
     }
+
+    if (_savedImage != null) {
+      return Image.file(_savedImage!);
+    }
+
+    if (_pickImageError != null) {
+      return Center(child: Text("Error: $_pickImageError"));
+    }
+
+    return const Center(child: Text("No hay imagen"));
   }
+
 
   @override
   Widget build(BuildContext context) {
