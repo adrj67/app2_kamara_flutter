@@ -72,7 +72,7 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     }
   }
-
+  
   /// -----------------------------------------------------------
   /// Toma una foto desde cámara o galería + guarda internamente
   /// y también en la galería del dispositivo.
@@ -95,20 +95,20 @@ class _MyHomePageState extends State<MyHomePage> {
       await File(pickedFile.path)
           .copy('${directory.path}/ultima_imagen.jpg');
 
+      
       // -------------------------------------------------------
-      // Guardado en GALERÍA
+      // Guardado en GALERÍA (solo si la imagen proviene de la CÁMARA)
       // -------------------------------------------------------
-      final bool? result = await GallerySaver.saveImage(pickedFile.path);
-      /* final bool? result = await GallerySaver.saveImage(
-        pickedFile.path,
-        name: "kamera_${DateTime.now().millisecondsSinceEpoch}",
-      );
-      */
-      if (result == true) {
-        _showMessage("Imagen guardada en la galería");
-      } else {
-        _showMessage("No se pudo guardar en la galería");
-      }
+
+       if (source == ImageSource.camera) {
+          final bool? result = await GallerySaver.saveImage(pickedFile.path);
+
+          if (result == true) {
+            _showMessage("Imagen guardada en la galería");
+          } else {
+            _showMessage("No se pudo guardar en la galería");
+          }
+        }
 
       setState(() {
         _imageFile = pickedFile;
