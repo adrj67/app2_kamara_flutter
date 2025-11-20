@@ -5,8 +5,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
-//import 'package:gallery_saver_plus/files.dart';
 import 'package:gallery_saver_plus/gallery_saver.dart';
+
+import 'screens/viewer_fullscreen/viewer_fullscreen.dart';
 
 /*
 LISTA REPRODUCCION
@@ -49,9 +50,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
 
-  XFile? _imageFile;
-  File? _savedImage;
-  String? _pickImageError;
+  List<String> imagenesGuardadas = [];
 
   @override
   void initState() {
@@ -68,7 +67,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (await lastImageFile.exists()) {
       setState(() {
-        _savedImage = lastImageFile;
+        imagenesGuardadas.add(lastImageFile.path); // la agregamos a la lista
       });
     }
   }
@@ -111,12 +110,11 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
       setState(() {
-        _imageFile = pickedFile;
-        _savedImage = internalCopy;
+        imagenesGuardadas.add(internalCopy.path);
       });
     } catch (e) {
       setState(() {
-        _pickImageError = e.toString();
+        _showMessage("Error: $e");
       });
     }
   }
@@ -130,26 +128,6 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  /// -----------------------------------------------------------
-  /// Widget para ver imagen
-  /// -----------------------------------------------------------
-  Widget _visualizarImagen() {
-    if (_imageFile != null) {
-      return Image.file(File(_imageFile!.path));
-    }
-
-    if (_savedImage != null) {
-      return Image.file(_savedImage!);
-    }
-
-    if (_pickImageError != null) {
-      return Center(child: Text("Error: $_pickImageError"));
-    }
-
-    return const Center(child: Text("No hay imagen"));
-  }
-
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -157,18 +135,55 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: _visualizarImagen(),
+      body: imagenesGuardadas.isEmpty
+          ? const Center(child: Text("No hay imágenes"))
+          : GridView.builder(
+              padding: const EdgeInsets.all(8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
+              ),
+              itemCount: imagenesGuardadas.length,
+              itemBuilder: (context, index) {
+                final imagePath = imagenesGuardadas[index];
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ViewerFullScreen(
+                          imagePaths: imagenesGuardadas,
+                          initialIndex: index,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: imagePath,
+                    child: Image.file(
+                      File(imagePath),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                );
+              },
+            ),
+      
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
           FloatingActionButton(
             backgroundColor: Colors.green,
+            heroTag: "galeriaBtn",
             onPressed: () => _onImageButtonPressed(ImageSource.gallery),
             child: const Icon(Icons.photo_library),
           ),
           const SizedBox(width: 10),
           FloatingActionButton(
             backgroundColor: Colors.green,
+            heroTag: "camaraBtn",
             onPressed: () => _onImageButtonPressed(ImageSource.camera),
             child: const Icon(Icons.photo_camera),
           ),
